@@ -9,11 +9,13 @@
 
 #include <livox_def.h>
 #include <livox_sdk.h>
+#include "lvx.h"
 
 uint8_t lidar_handle;
 std::mutex lidar_mutex;
 std::condition_variable lidar_connected;
-std::condition_variable lidar_sampling;
+std::condition_variable lidar_sampling_stopped;
+LvxFile lvxFile;
 
 void OnDeviceBroadcastReceived(const BroadcastDeviceInfo *info)
 {
@@ -28,11 +30,21 @@ void OnDeviceBroadcastReceived(const BroadcastDeviceInfo *info)
     if (ret == kStatusSuccess)
     {
         printf("Assigned to handle: %u\n", lidar_handle);
+        LvxDeviceInfo lvxDeviceInfo;
+        memset((void *)&lvxDeviceInfo, 0, sizeof(LvxDeviceInfo));
+        memcpy(
+            (void *)&lvxDeviceInfo.lidar_broadcast_code,
+            (const void *)info->broadcast_code,
+            16);
+        lvxDeviceInfo.device_type = kDeviceTypeLidarMid40;
+        lvxFile.appendDeviceInfo(&lvxDeviceInfo);
     }
 }
 
-void OnSampleDataReceived(uint8_t handle, LivoxEthPacket *data, uint32_t data_num, void *client_data)
+void OnSampleDataReceived(uint8_t handle, LivoxEthPacket *eth_packet, uint32_t points, void *client_data)
 {
+    // normally, lidar sends a new packet every 1 ms
+    lvxFile.appendPackageToCurrentFrame(eth_packet, points);
 }
 
 void OnLidarErrorReceived(livox_status status, uint8_t handle, ErrorMessage *message)
@@ -92,7 +104,7 @@ void OnLidarStateChanged(const DeviceInfo *info)
     }
 }
 
-void OnDeviceInfoChanged(const DeviceInfo *info, DeviceEvent type)
+void OnDeviceInfoChanged(const DeviceInfo *info, DeviceEvent event)
 {
     // only process registered Mid-40 lidar
     if (info == nullptr || info->handle != lidar_handle)
@@ -100,7 +112,7 @@ void OnDeviceInfoChanged(const DeviceInfo *info, DeviceEvent type)
         return;
     }
 
-    switch (type)
+    switch (event)
     {
     case kEventConnect:
         printf("OnDeviceInfoChanged event: kEventConnect\n");
@@ -115,7 +127,7 @@ void OnDeviceInfoChanged(const DeviceInfo *info, DeviceEvent type)
         OnLidarStateChanged(info);
         break;
     default:
-        printf("OnDeviceInfoChanged event: %d\n", type);
+        printf("OnDeviceInfoChanged event: %d\n", event);
         break;
     }
 }
@@ -129,11 +141,14 @@ void WaitForDevicesReady()
 void ProcessData()
 {
     std::unique_lock<std::mutex> lock(lidar_mutex);
-    lidar_sampling.wait(lock);
+    lidar_sampling_stopped.wait(lock);
 }
 
 void PrepareShutdown()
 {
+    printf("Request LVX close\n");
+    lvxFile.close();
+
     printf("Request lidar power off\n");
     LidarSetMode(lidar_handle, kLidarModePowerSaving, nullptr, nullptr);
 
@@ -142,8 +157,9 @@ void PrepareShutdown()
 
 void ctr_c_handler(int s)
 {
-    printf("Caught signal %d\n", s);
-    lidar_sampling.notify_all();
+    printf("Caught signal Ctrl+c\n");
+    lidar_connected.notify_all();
+    lidar_sampling_stopped.notify_all();
 }
 
 int main(int argc, const char *argv[])
@@ -174,6 +190,13 @@ int main(int argc, const char *argv[])
     LivoxSdkVersion _sdkversion;
     GetLivoxSdkVersion(&_sdkversion);
     printf("SDK version %d.%d.%d\n", _sdkversion.major, _sdkversion.minor, _sdkversion.patch);
+
+    printf("LVX initializing...\n");
+    if (!lvxFile.init())
+    {
+        goto __exit;
+    }
+    printf("LVX initialized.\n");
 
     /* REGISTER GLOBAL CALLBACKS */
     SetBroadcastCallback(OnDeviceBroadcastReceived);

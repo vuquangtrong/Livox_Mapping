@@ -1,5 +1,8 @@
 /* LVX Specifications v1.1.0.0 */
 
+#ifndef LVX_HEADER
+#define LVX_HEADER
+
 #include <fstream>
 
 #include <stdint.h>
@@ -55,8 +58,8 @@ typedef struct
     uint32_t status_code;
     uint8_t timestamp_type;
     uint8_t data_type;
-    uint8_t timestamp[8];
-    uint8_t points[POINTS_IN_PACKAGE * sizeof(LivoxRawPoint)];
+    uint64_t timestamp;
+    uint8_t points[POINTS_IN_PACKAGE * sizeof(LivoxSpherPoint)];
 } LvxPackage;
 
 typedef struct
@@ -90,3 +93,5 @@ private:
     uint64_t _current_offset;
     uint64_t _frame_index;
 };
+
+#endif

@@ -63,12 +63,8 @@ void LvxFile::appendPackageToCurrentFrame(LivoxEthPacket *livoxEthPacket, uint32
 
         memcpy(
             (void *)&_current_frame->packages[_current_package_index].version,
-            (const void *)&livoxEthPacket->version,
-            18);
-        memcpy(
-            (void *)&_current_frame->packages[_current_package_index].points,
-            (const void *)livoxEthPacket->data,
-            points * sizeof(LivoxRawPoint));
+            (const void *)livoxEthPacket,
+            sizeof(LvxPackage)-1); /* skip device_index */
 
         // printf("_current_package_index: %u\n", _current_package_index);
         _current_package_index++;

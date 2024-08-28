@@ -85,6 +85,7 @@ void OnLidarStateChanged(const DeviceInfo *info)
         break;
     case kLidarModeNormal:
         printf("OnLidarStateChanged kLidarModeNormal\n");
+        SetSphericalCoordinate(lidar_handle, nullptr, nullptr);
         SetDataCallback(lidar_handle, OnSampleDataReceived, nullptr);
         printf("Start sampling...\n");
         LidarStartSampling(lidar_handle, nullptr, nullptr);

@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.10)
+cmake_minimum_required(VERSION 3.28)
 
 project(livox_mapping)
 message(STATUS "main project dir: " ${PROJECT_SOURCE_DIR})
@@ -12,7 +12,7 @@ add_executable(${PROJECT_NAME} src/main.cpp)
 
 target_include_directories(${PROJECT_NAME}
     PUBLIC
-        include
+        inc
 )
 
 target_sources(${PROJECT_NAME}

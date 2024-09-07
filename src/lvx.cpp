@@ -2,7 +2,7 @@
 #include <thread>
 #include "lvx.h"
 
-LvxFile::LvxFile()
+LvxWriter::LvxWriter()
 {
     _is_device_info_appended = false;
     memset(&_frame_buffer_1, 0, sizeof(LxvFrame));
@@ -12,10 +12,7 @@ LvxFile::LvxFile()
 
     _current_offset = 0;
     _frame_index = 0;
-}
 
-bool LvxFile::init()
-{
     time_t curtime = time(nullptr);
     char filename[30] = {0};
 
@@ -23,26 +20,31 @@ bool LvxFile::init()
     strftime(filename, sizeof(filename), "%Y-%m-%d_%H-%M-%S.lvx", local_time);
     _file.open(filename, std::ios::out | std::ios::binary);
 
-    if (!_file.is_open())
+    if (_file.is_open())
     {
-        return false;
+        LvxPublicHeader publicHeader;
+        _file.write((const char *)&publicHeader, sizeof(LvxPublicHeader));
+        _current_offset += sizeof(LvxPublicHeader);
+
+        LxvPrivateHeader privateHeader;
+        privateHeader.device_count = 1;
+        _file.write((const char *)&privateHeader, sizeof(LxvPrivateHeader));
+        _current_offset += sizeof(LxvPrivateHeader);
+
+        _file.flush();
     }
-
-    LvxPublicHeader publicHeader;
-    _file.write((const char *)&publicHeader, sizeof(LvxPublicHeader));
-    _current_offset += sizeof(LvxPublicHeader);
-
-    LxvPrivateHeader privateHeader;
-    privateHeader.device_count = 1;
-    _file.write((const char *)&privateHeader, sizeof(LxvPrivateHeader));
-    _current_offset += sizeof(LxvPrivateHeader);
-
-    _file.flush();
-
-    return true;
 }
 
-void LvxFile::appendDeviceInfo(LvxDeviceInfo *lvxDeviceInfo)
+LvxWriter::~LvxWriter()
+{
+    if (_file.is_open())
+    {
+        _file.flush();
+        _file.close();
+    }
+}
+
+void LvxWriter::appendDeviceInfo(LvxDeviceInfo *lvxDeviceInfo)
 {
     if (_file.is_open() && !_is_device_info_appended)
     {
@@ -55,7 +57,7 @@ void LvxFile::appendDeviceInfo(LvxDeviceInfo *lvxDeviceInfo)
     }
 }
 
-void LvxFile::appendPackageToCurrentFrame(LivoxEthPacket *livoxEthPacket, uint32_t points)
+void LvxWriter::appendPackageToCurrentFrame(LivoxEthPacket *livoxEthPacket, uint32_t points)
 {
     if (_file.is_open() && _is_device_info_appended)
     {
@@ -64,7 +66,7 @@ void LvxFile::appendPackageToCurrentFrame(LivoxEthPacket *livoxEthPacket, uint32
         memcpy(
             (void *)&_current_frame->packages[_current_package_index].version,
             (const void *)livoxEthPacket,
-            sizeof(LvxPackage)-1); /* skip device_index */
+            sizeof(LvxPackage) - 1); /* skip device_index */
 
         // printf("_current_package_index: %u\n", _current_package_index);
         _current_package_index++;
@@ -81,7 +83,7 @@ void LvxFile::appendPackageToCurrentFrame(LivoxEthPacket *livoxEthPacket, uint32
     }
 }
 
-void LvxFile::writeCurrentFrameInBackground(std::ofstream *_file, LxvFrame *_frame)
+void LvxWriter::writeCurrentFrameInBackground(std::ofstream *_file, LxvFrame *_frame)
 {
     // auto start_time = std::chrono::steady_clock::now();
 
@@ -92,7 +94,7 @@ void LvxFile::writeCurrentFrameInBackground(std::ofstream *_file, LxvFrame *_fra
     // printf("writeCurrentFrameInBackground: %ld ns\n", (end_time - start_time));
 }
 
-void LvxFile::writeCurrentFrame()
+void LvxWriter::writeCurrentFrame()
 {
     // auto start_time = std::chrono::steady_clock::now();
 
@@ -129,18 +131,9 @@ void LvxFile::writeCurrentFrame()
 
     // write to file in a new thread in background
     // there is the room of 50 ms for thread to write to file, so it will work on very slow SD Card
-    std::thread _write_thread(&LvxFile::writeCurrentFrameInBackground, this, &_file, _writeback_frame);
+    std::thread _write_thread(&LvxWriter::writeCurrentFrameInBackground, this, &_file, _writeback_frame);
     _write_thread.detach(); // let thread run
 
     // auto end_time = std::chrono::steady_clock::now();
     // printf("writeCurrentFrame: %ld ns\n", (end_time - start_time));
-}
-
-void LvxFile::close()
-{
-    if (_file.is_open())
-    {
-        _file.flush();
-        _file.close();
-    }
 }

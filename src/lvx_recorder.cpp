@@ -15,7 +15,7 @@ uint8_t lidar_handle;
 std::mutex lidar_mutex;
 std::condition_variable lidar_connected;
 std::condition_variable lidar_sampling_stopped;
-LvxFile lvxFile;
+LvxWriter lvxFile;
 
 void OnDeviceBroadcastReceived(const BroadcastDeviceInfo *info)
 {
@@ -147,9 +147,6 @@ void ProcessData()
 
 void PrepareShutdown()
 {
-    printf("Request LVX close\n");
-    lvxFile.close();
-
     printf("Request lidar power off\n");
     LidarSetMode(lidar_handle, kLidarModePowerSaving, nullptr, nullptr);
 
@@ -191,13 +188,6 @@ int main(int argc, const char *argv[])
     LivoxSdkVersion _sdkversion;
     GetLivoxSdkVersion(&_sdkversion);
     printf("SDK version %d.%d.%d\n", _sdkversion.major, _sdkversion.minor, _sdkversion.patch);
-
-    printf("LVX initializing...\n");
-    if (!lvxFile.init())
-    {
-        goto __exit;
-    }
-    printf("LVX initialized.\n");
 
     /* REGISTER GLOBAL CALLBACKS */
     SetBroadcastCallback(OnDeviceBroadcastReceived);

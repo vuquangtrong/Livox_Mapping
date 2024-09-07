@@ -70,14 +70,14 @@ typedef struct
 
 #pragma pack()
 
-class LvxFile
+class LvxWriter
 {
 public:
-    LvxFile();
-    bool init();
+    LvxWriter();
+    ~LvxWriter();
+
     void appendDeviceInfo(LvxDeviceInfo *lvxDeviceInfo);
     void appendPackageToCurrentFrame(LivoxEthPacket *livoxEthPacket, uint32_t points);
-    void close();
 
 private:
     void writeCurrentFrameInBackground(std::ofstream *_file, LxvFrame *_frame);

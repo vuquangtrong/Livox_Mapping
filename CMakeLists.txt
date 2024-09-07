@@ -1,25 +1,28 @@
 cmake_minimum_required(VERSION 3.28)
 
 project(livox_mapping)
-message(STATUS "main project dir: " ${PROJECT_SOURCE_DIR})
+message(STATUS "Project Dir: " ${PROJECT_SOURCE_DIR})
 
-set(CMAKE_CXX_STANDARD 11)
+set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -pthread")
 
-add_executable(${PROJECT_NAME} src/main.cpp)
+# LVX_RECORDDER
 
-target_include_directories(${PROJECT_NAME}
+set(LVX_RECORDDER lvx_recorder)
+
+add_executable(${LVX_RECORDDER}
+    src/lvx.cpp
+    src/lvx_recorder.cpp
+)
+
+target_include_directories(${LVX_RECORDDER}
     PUBLIC
         inc
 )
 
-target_sources(${PROJECT_NAME}
-    PUBLIC
-        src/lvx.cpp
-)
-
-target_link_libraries(${PROJECT_NAME}
+# livox_sdk_static : https://github.com/Livox-SDK/Livox-SDK/commit/9306596a2bf15c1343bc023b497465ed0a32909d
+target_link_libraries(${LVX_RECORDDER}
     livox_sdk_static    
 )

@@ -23,7 +23,7 @@ typedef struct
 typedef struct
 {
     uint32_t frame_duration{50};
-    uint8_t device_count;
+    uint8_t device_count{0};
 } LxvPrivateHeader;
 
 typedef struct
@@ -51,7 +51,7 @@ typedef struct
 typedef struct
 {
     uint8_t device_index;
-    uint8_t version{5}; /* fixed in specs */
+    uint8_t version;
     uint8_t slot_id;
     uint8_t lidar_index;
     uint8_t reserved;

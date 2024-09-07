@@ -63,6 +63,7 @@ void LvxWriter::appendPackageToCurrentFrame(LivoxEthPacket *livoxEthPacket, uint
     {
         // auto start_time = std::chrono::steady_clock::now();
 
+        _current_frame->packages[_current_package_index].device_index = 0;
         memcpy(
             (void *)&_current_frame->packages[_current_package_index].version,
             (const void *)livoxEthPacket,

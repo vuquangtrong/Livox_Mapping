@@ -1,24 +1,30 @@
 #include <cstring>
 #include <thread>
-#include "lvx.h"
+#include "lvx.hpp"
 
-LvxWriter::LvxWriter()
+template <typename P>
+LvxWriter<P>::LvxWriter(std::string path)
 {
     _is_device_info_appended = false;
-    memset(&_frame_buffer_1, 0, sizeof(LxvFrame));
-    memset(&_frame_buffer_2, 0, sizeof(LxvFrame));
+    memset(&_frame_buffer_1, 0, sizeof(LxvFrame<P>));
+    memset(&_frame_buffer_2, 0, sizeof(LxvFrame<P>));
     _current_frame = &_frame_buffer_1;
     _current_package_index = 0;
 
     _current_offset = 0;
     _frame_index = 0;
 
-    time_t curtime = time(nullptr);
-    char filename[30] = {0};
+    if (path == "")
+    {
+        time_t curtime = time(nullptr);
+        char filename[30] = {0};
+        tm *local_time = localtime(&curtime);
+        strftime(filename, sizeof(filename), "%Y-%m-%d_%H-%M-%S.lvx", local_time);
 
-    tm *local_time = localtime(&curtime);
-    strftime(filename, sizeof(filename), "%Y-%m-%d_%H-%M-%S.lvx", local_time);
-    _file.open(filename, std::ios::out | std::ios::binary);
+        path = std::string(filename);
+    }
+
+    _file.open(path, std::ios::out | std::ios::binary);
 
     if (_file.is_open())
     {
@@ -34,8 +40,8 @@ LvxWriter::LvxWriter()
         _file.flush();
     }
 }
-
-LvxWriter::~LvxWriter()
+template <typename P>
+LvxWriter<P>::~LvxWriter()
 {
     if (_file.is_open())
     {
@@ -44,7 +50,8 @@ LvxWriter::~LvxWriter()
     }
 }
 
-void LvxWriter::appendDeviceInfo(LvxDeviceInfo *lvxDeviceInfo)
+template <typename P>
+void LvxWriter<P>::appendDeviceInfo(LvxDeviceInfo *lvxDeviceInfo)
 {
     if (_file.is_open() && !_is_device_info_appended)
     {
@@ -57,7 +64,8 @@ void LvxWriter::appendDeviceInfo(LvxDeviceInfo *lvxDeviceInfo)
     }
 }
 
-void LvxWriter::appendPackageToCurrentFrame(LivoxEthPacket *livoxEthPacket, uint32_t points)
+template <typename P>
+void LvxWriter<P>::appendPackageToCurrentFrame(LivoxEthPacket *livoxEthPacket, uint32_t points)
 {
     if (_file.is_open() && _is_device_info_appended)
     {
@@ -67,7 +75,7 @@ void LvxWriter::appendPackageToCurrentFrame(LivoxEthPacket *livoxEthPacket, uint
         memcpy(
             (void *)&_current_frame->packages[_current_package_index].version,
             (const void *)livoxEthPacket,
-            sizeof(LvxPackage) - 1); /* skip device_index */
+            sizeof(LvxPackage<P>) - 1); /* skip device_index */
 
         // printf("_current_package_index: %u\n", _current_package_index);
         _current_package_index++;
@@ -84,24 +92,26 @@ void LvxWriter::appendPackageToCurrentFrame(LivoxEthPacket *livoxEthPacket, uint
     }
 }
 
-void LvxWriter::writeCurrentFrameInBackground(std::ofstream *_file, LxvFrame *_frame)
+template <typename P>
+void LvxWriter<P>::writeCurrentFrameInBackground(std::ofstream *_file, LxvFrame<P> *_frame)
 {
     // auto start_time = std::chrono::steady_clock::now();
 
-    _file->write((char *)_frame, sizeof(LxvFrame));
+    _file->write((char *)_frame, sizeof(LxvFrame<P>));
     _file->flush();
 
     // auto end_time = std::chrono::steady_clock::now();
     // printf("writeCurrentFrameInBackground: %ld ns\n", (end_time - start_time));
 }
 
-void LvxWriter::writeCurrentFrame()
+template <typename P>
+void LvxWriter<P>::writeCurrentFrame()
 {
     // auto start_time = std::chrono::steady_clock::now();
 
     // printf("writeCurrentFrame: %lu\n", _frame_index);
 
-    LxvFrame *_writeback_frame = _current_frame;
+    LxvFrame<P> *_writeback_frame = _current_frame;
 
     // swap frame buffer
     if (_current_frame == &_frame_buffer_1)
@@ -118,7 +128,7 @@ void LvxWriter::writeCurrentFrame()
 
     // update frame header
     _writeback_frame->header.current_offset = _current_offset;
-    _writeback_frame->header.next_offset = _current_offset + sizeof(LxvFrame);
+    _writeback_frame->header.next_offset = _current_offset + sizeof(LxvFrame<P>);
     _writeback_frame->header.frame_index = _frame_index;
 
     // update counters
@@ -127,7 +137,7 @@ void LvxWriter::writeCurrentFrame()
 
     // write to file in current callback thread
     // due to slow speed, writing to SD Card can take more than 1ms, cause missing ethernet packets
-    // _file.write((char *)_writeback_frame, sizeof(LxvFrame));
+    // _file.write((char *)_writeback_frame, sizeof(LxvFrame<P>));
     // _file.flush();
 
     // write to file in a new thread in background
@@ -137,4 +147,55 @@ void LvxWriter::writeCurrentFrame()
 
     // auto end_time = std::chrono::steady_clock::now();
     // printf("writeCurrentFrame: %ld ns\n", (end_time - start_time));
+}
+
+template <typename P>
+LvxReader<P>::LvxReader(std::string path)
+{
+    _file.open(path, std::ifstream::binary);
+    if (_file.is_open())
+    {
+        LvxPublicHeader lvxPublicHeader;
+        _file.read((char *)&lvxPublicHeader, sizeof(LvxPublicHeader));
+        if (std::string((char *)&lvxPublicHeader.signature) == LVX_SIGNATURE &&
+            *((uint32_t *)lvxPublicHeader.version) == LVX_VERSION &&
+            lvxPublicHeader.magic_code == LVX_MAGIC_CODE)
+        {
+            printf("Found LVX file!\n");
+            LxvPrivateHeader lxvPrivateHeader;
+            _file.read((char *)&lxvPrivateHeader, sizeof(LxvPrivateHeader));
+            // skip Device info
+            _file.seekg(lxvPrivateHeader.device_count * sizeof(LvxDeviceInfo), std::ios_base::cur);
+        }
+        else
+        {
+            _file.close();
+        }
+    }
+}
+
+template <typename P>
+LvxReader<P>::~LvxReader()
+{
+    if (_file.is_open())
+    {
+        _file.close();
+    }
+}
+
+template <typename P>
+LxvFrame<P> *LvxReader<P>::getNextFrame()
+{
+    if (_file.is_open())
+    {
+        LxvFrame<P> *lvxFrame = new LxvFrame<P>();
+        _file.read((char *)lvxFrame, sizeof(LxvFrame<P>));
+        if (_file.fail())
+        {
+            return nullptr;
+        }
+        return lvxFrame;
+    }
+
+    return nullptr;
 }

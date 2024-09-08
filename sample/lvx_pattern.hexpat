@@ -1,3 +1,8 @@
+/* LVX 1.1.0.0 */
+
+u8 PACKAGES_IN_FRAME = 50;
+u8 POINTS_IN_PACKAGE = 100;
+
 struct LivoxRawPoint {
   s32 x;
   s32 y;
@@ -50,7 +55,7 @@ struct LxvFrameHeader
 struct LvxPackage
 {
     u8 device_index;
-    u8 version; /* fixed in specs */
+    u8 version;
     u8 slot_id;
     u8 lidar_index;
     u8 reserved;
@@ -58,21 +63,24 @@ struct LvxPackage
     u8 timestamp_type;
     u8 data_type;
     u64 timestamp;
-    //LivoxSpherPoint points[100];
-    LivoxRawPoint points[100];
+    if (data_type == 0) {
+    LivoxRawPoint points[POINTS_IN_PACKAGE];
+    } else if (data_type == 1) {
+    LivoxSpherPoint points[POINTS_IN_PACKAGE];
+    }
 };
 
 struct LxvFrame
 {
     LxvFrameHeader header;
-    LvxPackage packages[50];
+    LvxPackage packages[PACKAGES_IN_FRAME];
 };
 
-struct Lvx {
+struct LvxFile {
     LvxPublicHeader publicHeader;
     LxvPrivateHeader privateHeader;
-    LvxDeviceInfo deviceInfos[1];
-    LxvFrame frames[2];
+    LvxDeviceInfo deviceInfos[privateHeader.device_count];
+    LxvFrame frames[];
 };
 
-Lvx lvx @ 0x00;
+LvxFile lvxfile @ 0x00;

@@ -9,13 +9,13 @@
 
 #include <livox_def.h>
 #include <livox_sdk.h>
-#include "lvx.h"
+#include "lvx.t.hpp"
 
 uint8_t lidar_handle;
 std::mutex lidar_mutex;
 std::condition_variable lidar_connected;
 std::condition_variable lidar_sampling_stopped;
-LvxWriter lvxFile;
+LvxWriter<LivoxRawPoint> lvxFile;
 
 void OnDeviceBroadcastReceived(const BroadcastDeviceInfo *info)
 {

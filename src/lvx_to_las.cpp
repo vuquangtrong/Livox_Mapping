@@ -48,8 +48,8 @@ int main(int argc, char *argv[])
 
     uint64_t num_points = 0;
 
-    // while (true)
-    // {
+    while (true)
+    {
         std::unique_ptr<LxvFrame<LivoxRawPoint>> lvx_frame(lvx_file.getNextFrame());
         if (lvx_frame)
         {
@@ -69,11 +69,11 @@ int main(int argc, char *argv[])
                     num_points++;
                 }
             }
-        // }
-        // else
-        // {
-            // break;
-        // }
+        }
+        else
+        {
+            break;
+        }
     }
 
     printf("num_points = %lu\n", num_points);

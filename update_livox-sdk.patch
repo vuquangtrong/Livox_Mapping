@@ -1,0 +1,59 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index 6d627a0..ada7cf1 100755
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -1,8 +1,9 @@
+-cmake_minimum_required(VERSION 3.0)
++cmake_minimum_required(VERSION 3.14)
+ 
+ project(livox_sdk)
+ 
+-set(CMAKE_CXX_STANDARD 11)
++set(CMAKE_CXX_STANDARD 20)
++set(CMAKE_CXX_STANDARD_REQUIRED True)
+ 
+ message(STATUS "main project dir: " ${PROJECT_SOURCE_DIR})
+ 
+@@ -17,11 +18,3 @@ if (UNIX)
+ endif(UNIX)
+ 
+ add_subdirectory(sdk_core sdk_core)
+-add_subdirectory(sample/hub)
+-add_subdirectory(sample/lidar)
+-add_subdirectory(sample/hub_lvx_file)
+-add_subdirectory(sample/lidar_lvx_file)
+-add_subdirectory(sample_cc/hub)
+-add_subdirectory(sample_cc/lidar)
+-add_subdirectory(sample_cc/trouble_shooting)
+-add_subdirectory(sample_cc/lidar_utc_sync)
+diff --git a/sdk_core/CMakeLists.txt b/sdk_core/CMakeLists.txt
+index 60037f6..dfa3dae 100644
+--- a/sdk_core/CMakeLists.txt
++++ b/sdk_core/CMakeLists.txt
+@@ -1,4 +1,4 @@
+-cmake_minimum_required(VERSION 3.0)
++cmake_minimum_required(VERSION 3.14)
+ 
+ set(SDK_LIBRARY ${PROJECT_NAME}_static)
+ add_library(${SDK_LIBRARY} STATIC "")
+diff --git a/sdk_core/src/base/thread_base.h b/sdk_core/src/base/thread_base.h
+index 35f7fbd..b8fec1d 100644
+--- a/sdk_core/src/base/thread_base.h
++++ b/sdk_core/src/base/thread_base.h
+@@ -26,6 +26,7 @@
+ #define LIVOX_THREAD_BASE_H_
+ #include <atomic>
+ #include <thread>
++#include <memory>
+ #include "noncopyable.h"
+ 
+ namespace livox {
+@@ -45,7 +46,7 @@ class ThreadBase : public noncopyable {
+  protected:
+   std::shared_ptr<std::thread> thread_;
+   std::atomic_bool quit_;
+-  
++
+  private:
+   std::atomic_bool is_thread_valid_;
+ };

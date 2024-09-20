@@ -77,7 +77,7 @@ struct LxvFrame
 #pragma pack()
 
 template <typename P>
-class  LvxWriter
+class LvxWriter
 {
 public:
     LvxWriter(std::string path = "");
